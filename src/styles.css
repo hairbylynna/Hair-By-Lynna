@@ -40,6 +40,9 @@ h1.hero-title{margin:0;align-items:center}
 .hair-guide-card p{color:#f9e3ee;line-height:1.85;font-size:clamp(13px,1.8vw,16px)}
 .hair-guide-card strong{color:#f3bad5}
 .hair-guide-card .hair-guide-warning{color:#ffafa6;font-weight:600;text-transform:uppercase;letter-spacing:.035em;font-size:13px;margin:20px auto 0}
+.french-curl-card{margin-top:28px}
+.french-curl-photo{display:flex;justify-content:center;margin:0 auto 24px}
+.french-curl-photo img{display:block;width:auto;height:auto;max-height:380px;max-width:100%;object-fit:contain;filter:drop-shadow(0 14px 26px rgba(0,0,0,.4))}
 @media(max-width:600px){.hair-guide-card{padding:20px 16px}}
 
 .hair-product-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:260px;width:min(100%,340px);box-sizing:border-box;margin:0 auto 26px;padding:20px;border:2px dashed #b87a9d;border-radius:12px;background:#271522;color:#f2bad5;text-align:center}
