@@ -42,15 +42,15 @@ const serviceImages=['/images/micro-knots.webp','/images/boho-braids.webp'];
 const services=[{name:'Miracle Knots',detail:'Fine protective braids with a beautiful natural finish.'},{name:'Boho Braids',detail:'Soft, textured braids with effortless curls.'}];
 const depositPolicyEn=[
   'Deposits must be sent within 24 hours of submitting your booking request.',
-  'For appointments scheduled within the next 48 hours, deposits must be sent within 2 hours of submitting your request, except overnight requests.',
-  'For requests submitted between midnight and 6:59 a.m. (Montréal time), the deposit for an appointment within 48 hours is due by 9:00 a.m. that morning. Lynna may review these requests until 9:00 a.m.',
+  'For appointments scheduled within the next 48 hours, deposits must be sent within 2 hours of submitting your request, including overnight.',
+  'If a request is placed between midnight and 6:59 a.m., or a short-notice booking\'s two-hour deposit deadline falls during that window, Lynna will respond by 9:00 a.m. that morning (Montréal time). This does not extend the deposit payment deadline.',
   'If the deposit is not received by the deadline, Lynna may manually cancel the request after checking payment status; bookings are not cancelled automatically.',
   'Your appointment is only confirmed once your deposit has been received and your booking has been approved.'
 ];
 const depositPolicyFr=[
   'Le dépôt doit être envoyé dans les 24 heures suivant l’envoi de votre demande de réservation.',
-  'Pour un rendez-vous prévu dans les 48 prochaines heures, le dépôt doit être envoyé dans les 2 heures suivant votre demande, sauf pour les demandes de nuit.',
-  'Pour une demande soumise entre minuit et 6 h 59 (heure de Montréal), le dépôt d’un rendez-vous dans les 48 heures est dû au plus tard à 9 h le même matin. Lynna peut examiner la demande jusqu’à 9 h.',
+  'Pour un rendez-vous prévu dans les 48 prochaines heures, le dépôt doit être envoyé dans les 2 heures suivant votre demande, même la nuit.',
+  'Si une demande est faite entre minuit et 6 h 59, ou si le délai de dépôt de deux heures d’une réservation de dernière minute se termine pendant cette plage, Lynna répondra au plus tard à 9 h ce matin-là (heure de Montréal). Cela ne prolonge pas le délai de paiement du dépôt.',
   'Si le dépôt n’est pas reçu avant la limite, Lynna peut annuler manuellement la demande après avoir vérifié le paiement; aucune annulation n’est automatique.',
   'Votre rendez-vous sera confirmé uniquement lorsque votre dépôt aura été reçu et que Lynna aura approuvé votre demande.'
 ];
