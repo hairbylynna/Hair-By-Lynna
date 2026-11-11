@@ -139,6 +139,7 @@ export default function BookingStatus({ language, initialId = '', initialReferen
       :(['pending','approved'].includes(record.status)&&<>
         <p>{fr?'Envoyez votre dépôt par Virement Interac à :':'Send your deposit by Interac e-Transfer to:'}</p>
         <a className="booking-deposit-email" href="mailto:hairbylynna@gmail.com">hairbylynna@gmail.com</a>
+        {record.deposit_due_at&&<p className="booking-notice"><strong>{fr?'Date limite du dépôt':'Deposit deadline'}: </strong>{new Date(record.deposit_due_at).toLocaleString(fr?'fr-CA':'en-CA',{timeZone:'America/Toronto',dateStyle:'medium',timeStyle:'short'})} ({fr?'heure de Montréal':'Montréal time'})</p>}
         <p>{fr?'Inscrivez votre référence de réservation dans le message du virement. Lynna confirmera la réception après vérification. Si vous avez déjà payé, ne renvoyez pas un deuxième virement.':'Include your booking reference in the transfer message. Lynna will confirm after verifying the payment. If you have already paid, do not send it a second time.'}</p>
         {record.deposit_reported_sent_at
          ?<p className="booking-deposit-reported" role="status">{fr
