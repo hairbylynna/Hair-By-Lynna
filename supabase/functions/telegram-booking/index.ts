@@ -103,7 +103,7 @@ type EmailInput = {
   lang: Lang; event: string; customerName: string; serviceName: string; status: string;
   startsAt: string; oldStartsAt: string|null; reservedMinutes: number;
   depositCents: number; depositPaid: boolean; depositReported: boolean;
-  showApprovedLocation: boolean; paymentInstructions: boolean;
+  showApprovedLocation: boolean; paymentInstructions: boolean; overnightRequest: boolean;
   reference: string; privateLink: string; reportLink: string;
   approvedLocation: string; transferEmail: string;
 };
@@ -120,6 +120,11 @@ export function buildCustomerEmail(i: EmailInput) {
   const depositAmount = new Intl.NumberFormat(i.lang==="fr"?"fr-CA":"en-CA",{style:"currency",currency:"CAD"}).format(i.depositCents/100);
   const depositState = i.depositPaid ? t.received : i.depositReported ? t.reportedPending : t.notReceived;
   const statusLabel = STATUS[i.lang][i.status] || i.status;
+  const overnightNote = i.overnightRequest
+    ? (i.lang==="fr"
+      ? "Votre demande de rendez-vous a été reçue pendant la nuit (entre minuit et 7 h). Lynna examinera votre demande et vous confirmera si votre rendez-vous est approuvé au plus tard à 9 h ce matin (heure de Montréal). Votre rendez-vous reste en attente jusqu'à son approbation."
+      : "Your booking request was received overnight (between midnight and 7 a.m.). Lynna will review your request and confirm whether your appointment is approved by 9:00 a.m. this morning (Montréal time). Your appointment remains pending until approved.")
+    : null;
 
   const textContent = [
     subject, "", t.hi+" "+i.customerName+",", "",
@@ -128,6 +133,7 @@ export function buildCustomerEmail(i: EmailInput) {
     (rescheduled ? t.newTime : t.dateTime)+t.colon+when,
     ...(durationEstimate ? [t.duration+t.colon+durationEstimate] : []),
     t.status+t.colon+statusLabel,
+    ...(overnightNote ? ["",overnightNote] : []),
     ...(i.showApprovedLocation ? [t.addressTitle+t.colon+i.approvedLocation, t.addressPrivate] : []),
     t.deposit+t.colon+depositAmount+" — "+depositState,
     ...(i.event==="deposit_received" ? [t.depositReceivedMsg] : []),
@@ -157,6 +163,7 @@ export function buildCustomerEmail(i: EmailInput) {
        ${escapeHtml(t.status)}${escapeHtml(t.colon)}<strong>${escapeHtml(statusLabel)}</strong><br/>
        ${escapeHtml(t.deposit)}${escapeHtml(t.colon)}<strong>${escapeHtml(depositAmount+" — "+depositState)}</strong><br/>
        ${escapeHtml(t.reference)}${escapeHtml(t.colon)}<strong style="color:#f2b3d1;">${escapeHtml(i.reference)}</strong></p>
+       ${overnightNote ? box('<strong style="color:#ffcbe1;">'+(i.lang==="fr"?"Réservation de nuit":"Overnight booking request")+'</strong><p style="line-height:1.7;">'+escapeHtml(overnightNote)+'</p>') : ''}
        ${i.showApprovedLocation ? box('<strong style="color:#ffcbe1;">'+escapeHtml(t.addressTitle)+'</strong><p style="margin:8px 0 0;line-height:1.7;">'+escapeHtml(i.approvedLocation)+'</p><p style="font-size:12px;color:#d3aec0;margin:8px 0 0;">'+escapeHtml(t.addressPrivate)+'</p>') : ''}
        ${rescheduled ? '<p style="color:#ffd6e9;font-weight:bold;">'+escapeHtml(t.rescheduledMsg)+'</p>' : ''}
        ${i.event==="deposit_received" ? '<p style="color:#ffcbe1;font-weight:bold;">'+escapeHtml(t.depositReceivedMsg)+'</p>' : ''}
@@ -211,7 +218,7 @@ Deno.serve(async (req) => {
   if(!heading)return new Response("No notification needed",{status:200});
   const db=createClient(supabaseUrl,serviceKey,{auth:{persistSession:false}});
   const {data,error}=await db.from("appointments")
-    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,deposit_reported_sent_at,preferred_language,services(name_en,name_fr)")
+    .select("id,customer_name,customer_email,starts_at,ends_at,status,reschedule_previous_starts_at,reschedule_previous_ends_at,reschedule_response,deposit_amount_cents,deposit_received_at,deposit_reported_sent_at,created_at,preferred_language,services(name_en,name_fr)")
     .eq("id",current.id).single();
   if(error||!data){console.error("telegram-booking: appointment lookup failed",{code:error?.code,message:error?.message});return new Response("Appointment lookup failed",{status:500});}
   const svc=(Array.isArray(data.services)?data.services[0]:data.services) as {name_en?:string;name_fr?:string}|null;
@@ -233,6 +240,11 @@ Deno.serve(async (req) => {
   const showApprovedLocation=data.status==="approved";
   const activeAppointment=data.status==="pending"||data.status==="approved";
   const paymentInstructions=activeAppointment&&!depositPaid&&!depositReported;
+  // Applies only to initial booking requests received 00:00–06:59, Montréal local.
+  const bookingHour=Number(new Intl.DateTimeFormat("en-US",{
+    timeZone:"America/Toronto",hour:"2-digit",hourCycle:"h23"
+  }).format(new Date(data.created_at)));
+  const overnightRequest=event==="created"&&data.status==="pending"&&bookingHour>=0&&bookingHour<7;
   // Telegram message for Lynna: always English (unchanged).
   const lines=[
     heading,
@@ -244,6 +256,7 @@ Deno.serve(async (req) => {
     "Ends: "+escapeHtml(monTime(data.ends_at)),
     "Status: "+escapeHtml(data.status),
     "Deposit: "+escapeHtml(depositAmount+" — "+depositLabel),
+    ...(overnightRequest?["Overnight request: customer told Lynna will respond by 9:00 a.m. Montréal time."]:[]),
     "Customer language: "+(lang==="fr"?"French":"English"),
     ...(rescheduled?["Customer response: awaiting confirmation"]:[]),
     ...(event==="reschedule_confirmed"?["Customer response: confirmed new time"]:[]),
@@ -266,7 +279,7 @@ Deno.serve(async (req) => {
         serviceName:(lang==="fr"?(svc?.name_fr||svc?.name_en):(svc?.name_en||svc?.name_fr))||t.serviceFallback,
         status:data.status,startsAt:data.starts_at,oldStartsAt:data.reschedule_previous_starts_at??null,
         reservedMinutes,depositCents:data.deposit_amount_cents??2000,depositPaid,depositReported,
-        showApprovedLocation,paymentInstructions,reference,privateLink,reportLink,approvedLocation,transferEmail
+        showApprovedLocation,paymentInstructions,overnightRequest,reference,privateLink,reportLink,approvedLocation,transferEmail
       });
       const sent=await fetch("https://api.brevo.com/v3/smtp/email",{method:"POST",headers:{
         "api-key":brevoKey,"Content-Type":"application/json","accept":"application/json"
