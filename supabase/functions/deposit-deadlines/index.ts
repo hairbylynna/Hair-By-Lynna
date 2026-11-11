@@ -46,9 +46,26 @@ function cronAuthorized(req:Request):boolean{
 type Alert={notice_id:number;appointment_id:string;notice_kind:string;due_at:string};
 type Booking={
  id:string;customer_name:string;customer_email:string;status:string;
- starts_at:string;deposit_due_at:string|null;deposit_received_at:string|null;
+ starts_at:string;created_at:string;deposit_due_at:string|null;deposit_received_at:string|null;
  deposit_reported_sent_at:string|null;deposit_amount_cents:number|null;preferred_language:string|null;
 };
+// The 9 a.m. approval buffer never extends the deposit deadline.
+function localHour(instant:Date):number{
+ return Number(new Intl.DateTimeFormat("en-US",{timeZone:"America/Toronto",hour:"2-digit",hourCycle:"h23"}).format(instant));
+}
+function overnightApprovalDay(a:Booking):Date|null{
+ const booked=new Date(a.created_at),start=new Date(a.starts_at);
+ if(!Number.isFinite(booked.getTime())||!Number.isFinite(start.getTime()))return null;
+ const shortNotice=start.getTime()<=booked.getTime()+48*60*60*1000;
+ if(localHour(booked)<7)return booked;
+ if(shortNotice){const due=new Date(booked.getTime()+2*60*60*1000);if(localHour(due)<7)return due;}
+ return null;
+}
+function approvalDayLabel(value:Date,lang:"en"|"fr"):string{
+ return new Intl.DateTimeFormat(lang==="fr"?"fr-CA":"en-CA",{
+  timeZone:"America/Toronto",weekday:"long",year:"numeric",month:"long",day:"numeric"
+ }).format(value);
+}
 async function sendWarning(a:Booking,brevoKey:string,sender:string){
  const lang:"en"|"fr"=a.preferred_language==="fr"?"fr":"en";
  const fr=lang==="fr";
@@ -56,6 +73,13 @@ async function sendWarning(a:Booking,brevoKey:string,sender:string){
  const ref=bookingReference(a.id,a.starts_at);
  const link=website+"/?booking="+encodeURIComponent(a.id)+"&ref="+encodeURIComponent(ref)+"&deposit=sent#booking-status";
  const deadline=montreal(a.deposit_due_at!,lang);
+ const reviewDay=overnightApprovalDay(a);
+ const reviewDate=reviewDay?approvalDayLabel(reviewDay,lang):"";
+ const overnightNote=reviewDay
+  ? (fr
+    ? "Le délai de paiement du dépôt reste inchangé. Lynna examinera votre demande et vous avisera de son approbation ou de son refus au plus tard à 9 h le "+reviewDate+" (heure de Montréal). Votre demande reste en attente jusque-là."
+    : "Your deposit payment deadline is unchanged. Lynna will review your booking and respond with an approval or decline by 9:00 a.m. on "+reviewDate+" (Montréal time). Your request remains pending until then.")
+  : null;
  const t=fr?{
   subject:"Hair by Lynna — Votre dépôt est dû dans 5 minutes",
   hello:"Bonjour",
@@ -77,9 +101,14 @@ async function sendWarning(a:Booking,brevoKey:string,sender:string){
   explain:"Open the link, enter your booking email and tap the button to report sending the transfer. Lynna will verify the payment.",
   reference:"Booking reference"
  };
+ const caution=reviewDay
+  ? (fr
+     ? "Si le dépôt n'est pas reçu avant la date limite, Lynna pourra refuser la demande après avoir vérifié le paiement. Aucune annulation n'est automatique."
+     : "If your deposit is not received by the deadline, Lynna may decline after reviewing payment. Bookings are not cancelled automatically.")
+  : t.caution;
  const plain=[
   t.subject,"",t.hello+" "+a.customer_name+",","",t.intro,
-  t.due+": "+deadline,t.caution,"",t.already,
+  t.due+": "+deadline,caution,...(overnightNote?[overnightNote]:[]),"",t.already,
   t.button+": "+link,t.explain,t.reference+": "+ref,"","Hair by Lynna"
  ].join("\n");
  const html=[
@@ -90,7 +119,8 @@ async function sendWarning(a:Booking,brevoKey:string,sender:string){
   '<p>'+escapeHtml(t.hello)+' '+escapeHtml(a.customer_name)+',</p>',
   '<p>'+escapeHtml(t.intro)+'</p>',
   '<p><strong>'+escapeHtml(t.due)+':</strong> '+escapeHtml(deadline)+'</p>',
-  '<p style="color:#ffd1df;">'+escapeHtml(t.caution)+'</p>',
+  '<p style="color:#ffd1df;">'+escapeHtml(caution)+'</p>',
+  ...(overnightNote?['<p style="color:#ffd1df;font-weight:bold;">'+escapeHtml(overnightNote)+'</p>']:[]),
   '<p>'+escapeHtml(t.already)+'</p>',
   '<a href="'+escapeHtml(link)+'" style="display:inline-block;background:#f0aeca;color:#25111c;border-radius:6px;padding:14px 18px;text-decoration:none;font-weight:bold;">'+escapeHtml(t.button)+'</a>',
   '<p style="font-size:12px;line-height:1.65;">'+escapeHtml(t.explain)+'</p>',
@@ -101,7 +131,7 @@ async function sendWarning(a:Booking,brevoKey:string,sender:string){
   method:"POST",headers:{"Content-Type":"application/json","accept":"application/json","api-key":brevoKey},
   body:JSON.stringify({
    sender:{name:"Hair by Lynna",email:sender},
-   replyTo:{name:"Lynna",email:"xhair.dreams@gmail.com"},
+   replyTo:{name:"Lynna",email:"hairbylynna@gmail.com"},
    to:[{name:a.customer_name,email:a.customer_email}],subject:t.subject,textContent:plain,htmlContent:html
   })
  });
@@ -118,6 +148,7 @@ async function sendOwnerAlert(a:Booking,kind:string,token:string,chat:string){
   "Reference: "+ref,
   "Appointment: "+montreal(a.starts_at),
   "Deposit deadline: "+montreal(a.deposit_due_at!),
+  ...(overnightApprovalDay(a)?["Overnight approval response by 9:00 a.m. on "+approvalDayLabel(overnightApprovalDay(a)!,"en")+" (Montréal time). Deposit deadline unchanged."]:[]),
   "Customer reported sending: "+(claimed?"YES — bank verification needed":"NO"),
   ...(claimed?["Reported on: "+montreal(a.deposit_reported_sent_at!)]:[]),
   "",
@@ -159,7 +190,7 @@ Deno.serve(async(request)=>{
   let errorMessage:string|null=null;
   try{
    const {data:booking,error:fetchError}=await db.from("appointments")
-    .select("id,customer_name,customer_email,status,starts_at,deposit_due_at,deposit_received_at,deposit_reported_sent_at,deposit_amount_cents,preferred_language")
+    .select("id,customer_name,customer_email,status,starts_at,created_at,deposit_due_at,deposit_received_at,deposit_reported_sent_at,deposit_amount_cents,preferred_language")
     .eq("id",item.appointment_id).maybeSingle();
    if(fetchError)throw Error("Booking lookup failed: "+fetchError.code);
    const a=booking as Booking|null;
