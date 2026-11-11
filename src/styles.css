@@ -109,6 +109,6 @@ footer .site-credit span{padding:0 8px;color:#da89ac}
 footer .site-credit a{color:#e7a9c6;text-decoration:none;border-bottom:1px solid rgba(231,169,198,.35);transition:color .2s,border-color .2s}
 footer .site-credit a:hover,footer .site-credit a:focus-visible{color:#ffd3e8;border-bottom-color:#ffd3e8}
 
-.footer-tiktok{display:flex;align-items:center;justify-content:center;width:42px;height:42px;margin:16px 0 0 auto;color:#f1afcf;border:1px solid #86516f;border-radius:50%;transition:color .2s,background-color .2s,border-color .2s}
-.footer-tiktok svg{width:22px;height:22px;display:block}
-.footer-tiktok:hover,.footer-tiktok:focus-visible{color:#fff;background:#a73c77;border-color:#efacd0}
+footer .site-credit a.footer-tiktok{display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:20px;height:20px;margin-left:10px;color:#e7a9c6;border:0;border-radius:0;transition:color .2s}
+.footer-tiktok svg{width:16px;height:16px;display:block}
+footer .site-credit a.footer-tiktok:hover,footer .site-credit a.footer-tiktok:focus-visible{color:#fff;border:0}
