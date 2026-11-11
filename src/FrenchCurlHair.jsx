@@ -7,7 +7,7 @@ export default function FrenchCurlHair({ language }) {
     <div className="hair-guide-card french-curl-card">
       <div className="french-curl-photo">
         <img
-          src="/images/french-curl.webp"
+          src="/images/french-curl-cutout.webp"
           alt={isFrench
             ? 'Paquet de mèches Freetress 3X French Curl Braid, 22 pouces, noires'
             : 'Freetress 3X French Curl Braid hair package, 22 inches, black'}
